@@ -1,0 +1,15 @@
+﻿global using Microsoft.AspNetCore.Http;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.Azure.WebJobs;
+global using Microsoft.Azure.WebJobs.Extensions.Http;
+global using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+global using Microsoft.Extensions.Logging;
+global using Microsoft.FeatureManagement;
+global using Microsoft.FeatureManagement.FeatureFilters;
+global using Microsoft.OpenApi.Models;
+global using System;
+global using System.Net;
+global using System.Threading.Tasks;
+global using FeatureFlags.Sample;
+global using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Configuration;
