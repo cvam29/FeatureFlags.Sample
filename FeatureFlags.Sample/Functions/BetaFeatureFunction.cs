@@ -6,32 +6,38 @@ public class BetaFeatureFunction(IFeatureManagerSnapshot featureManager)
 
     [FunctionName("BetaFeatureFunction")]
     [OpenApiOperation(operationId: "Run", tags: new[] { "feature" })]
-    [OpenApiParameter(name: "email", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "Email of the user")]
+    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = false, Type = typeof(string), Description = "User ID for targeting (optional)")]
     [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(string))]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequest req,
         ILogger log)
     {
-        string email = req.Query["email"];
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return new BadRequestObjectResult("Please provide 'email' as query parameter.");
-        }
+        string userId = req.Query["userId"];
+        
+        // Create targeting context - if no userId provided, use a random one for percentage calculation
+        var context = new TargetingContext 
+        { 
+            UserId = !string.IsNullOrWhiteSpace(userId) ? userId : Guid.NewGuid().ToString()
+        };
 
         // Optional logging for Microsoft.Percentage bucket analysis
-        string userId = email.ToLowerInvariant();
-        int hash = Math.Abs(userId.GetHashCode());
+        string userForLogging = context.UserId.ToLowerInvariant();
+        int hash = Math.Abs(userForLogging.GetHashCode());
         int bucket = hash % 100;
-        log.LogInformation($"🧮 User '{userId}' falls into Microsoft.Percentage bucket: {bucket}");
+        log.LogInformation($"🧮 User '{userForLogging}' falls into Microsoft.Percentage bucket: {bucket}");
 
-        var context = new TargetingContext { UserId = email };
         bool isEnabled = await _featureManager.IsEnabledAsync("BetaFeature", context);
 
         var message = isEnabled
-            ? $"✅ {email} has access to BetaFeature."
-            : $"🚫 {email} does NOT have access to BetaFeature.";
+            ? $"✅ User '{context.UserId}' has access to BetaFeature (bucket: {bucket})."
+            : $"🚫 User '{context.UserId}' does NOT have access to BetaFeature (bucket: {bucket}).";
 
-        return new OkObjectResult(message);
+        return new OkObjectResult(new { 
+            userId = context.UserId, 
+            hasAccess = isEnabled,
+            bucket,
+            message
+        });
     }
 }
 

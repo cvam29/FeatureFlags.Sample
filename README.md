@@ -1,118 +1,144 @@
-﻿# 🧪 Feature Flags Sample (.NET 8 Azure Functions)  
+﻿# FeatureFlags.Sample
 
-This project showcases an Azure Function (In-Process) built with .NET 8, implementing feature flag management using the Microsoft.FeatureManagement library. It includes OpenAPI/Swagger support for easy API exploration and a clear, testable structure.  
+A sample Azure Functions application demonstrating Feature Management with Microsoft Feature Flags, including percentage-based feature rollouts and user targeting.
 
-## 📂 Project Structure  
+## Overview
 
-FeatureFlags.Sample/  
-│  
-├── Configuration/  
-│   └── FeatureFlagSettings.cs      # (Optional) Strongly-typed feature flag settings  
-│  
-├── FeatureFlags/  
-│   └── FeatureNames.cs            # Constants for feature flag names (e.g., "BetaFeature")  
-│  
-├── Functions/  
-│   └── BetaFeatureFunction.cs     # HTTP-triggered Azure Function with feature flag logic  
-│  
-├── Services/  
-│   └── UserContextService.cs      # Helper to build TargetingContext from request  
-│  
-├── Startup.cs                     # Configures Feature Management and OpenAPI  
-├── appsettings.json               # Feature flag configuration  
-├── host.json                      # Azure Functions host settings  
-├── local.settings.json            # Local environment settings  
-├── FeatureFlags.Sample.csproj     # Project file  
-│  
-FeatureFlags.Sample.Test/  
-│  
-├── FunctionTests/  
-│   └── BetaFeatureFunctionTest.cs # xUnit tests for feature rollouts  
-│  
-├── Mocks/  
-│   └── FeatureManagerMock.cs      # (Optional) Reusable mocks for testing  
-│  
-├── FeatureFlags.Sample.Test.csproj # Test project file  
+This project showcases how to implement feature flags in Azure Functions using:
+- **Microsoft.FeatureManagement** for feature flag management
+- **Percentage Filter** for gradual rollouts
+- **Targeting Filter** for user-specific feature control
+- **.NET 8** as the target framework
 
-## 🚀 Features  
+## Project Structure
+FeatureFlags.Sample/
+├── Functions/
+│   └── BetaFeatureFunction.cs    # Main HTTP trigger function
+├── appsettings.json              # Feature flag configuration
+├── local.settings.json           # Local development settings
+├── host.json                     # Azure Functions host configuration
+├── Startup.cs                    # Dependency injection setup
+└── GlobalUsings.cs               # Global using statements
+## Local Development Setup
 
-- **HTTP-triggered Azure Function** with feature flag checks.  
-- **Feature Management** using Microsoft.FeatureManagement.  
-- **Microsoft.Percentage**: Enables the "BetaFeature" for 20% of users (based on email hash).  
-- **Microsoft.Targeting**: Enables the feature for specific email addresses (e.g., `alpha@demo.com`).  
-- **Diagnostic Logging**: Logs the percentage bucket for each user to debug rollout behavior.  
-- **OpenAPI/Swagger**: API documentation at `/api/swagger/ui`.  
-- **xUnit Tests**: Validates feature access for targeted emails and percentage-based rollouts.  
+### Prerequisites
 
-## ⚙️ Feature Flag Configuration  
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Azure Functions Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local)
+- [Azurite](https://docs.microsoft.com/azure/storage/common/storage-use-azurite) or Azure Storage Account
 
-The feature flag settings are defined in `appsettings.json`:  
-- **Microsoft.Percentage**: Randomly enables the `BetaFeature` for 20% of users based on their email's hash.  
-- **Microsoft.Targeting**: Always enables the `BetaFeature` for specified email addresses.  
+### Local Settings Configuration
 
-## 🔍 Diagnostic Logging  
+The `local.settings.json` file contains essential configuration for local development:
+{
+    "IsEncrypted": false,
+    "Values": {
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_INPROC_NET8_ENABLED": "1", 
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet"
+    }
+}
+#### Configuration Explained
 
-The function logs the percentage bucket for each user to help debug why a user does or doesn't get the feature:  
-If `bucket < 20`, the user qualifies for the 20% rollout (unless they're in the targeted email list).  
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `IsEncrypted` | `false` | Indicates if the settings values are encrypted (typically false for local development) |
+| `AzureWebJobsStorage` | `UseDevelopmentStorage=true` | Uses Azurite storage emulator for local development. For production, use actual Azure Storage connection string |
+| `FUNCTIONS_INPROC_NET8_ENABLED` | `1` | Enables .NET 8 in-process hosting model for Azure Functions |
+| `FUNCTIONS_WORKER_RUNTIME` | `dotnet` | Specifies the language runtime for Azure Functions |
 
-## 🛠️ How to Run  
+#### Additional Local Settings (Optional)
 
-1. **Clone the repository**:  
-2. **Install dependencies**:  
-   Ensure you have .NET 8 SDK installed, then restore packages:  
-3. **Run locally**:  
-   Use Visual Studio (F5) or the CLI:  
-4. **Access the API**:  
-   - **Swagger UI**: Open `http://localhost:7125/api/swagger/ui` in your browser.  
-   - **Test Endpoint**: Call the function with an email query parameter:  
-     ```bash  
-     curl "http://localhost:7125/api/BetaFeatureFunction?email=test@example.com"  
-     ```  
+You can extend `local.settings.json` with additional settings as needed:
+{
+    "IsEncrypted": false,
+    "Values": {
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_INPROC_NET8_ENABLED": "1",
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+        "APPINSIGHTS_INSTRUMENTATIONKEY": "your-app-insights-key",
+        "AZURE_CLIENT_ID": "your-client-id",
+        "AZURE_CLIENT_SECRET": "your-client-secret"
+    }
+}
+### Running Locally
 
-   Example responses:  
-   - ✅ `test@example.com` has access to BetaFeature. (if enabled)  
-   - 🚫 `test@example.com` does NOT have access to BetaFeature. (if disabled)  
+1. **Start Azurite** (if using local storage emulator):azurite --silent --location c:\azurite --debug c:\azurite\debug.log
+2. **Run the Functions app**:cd FeatureFlags.Sample
+   func start
+3. **Test the endpoint**:# Test without userId (generates random user)
+curl http://localhost:7071/api/BetaFeatureFunction
 
-5. **Check Logs**:  
-   View logs in the console or Application Insights to see percentage bucket assignments:  
+# Test with specific userId
+curl "http://localhost:7071/api/BetaFeatureFunction?userId=user1@example.com"
+## Feature Configuration
 
-## 🧪 How to Test  
+Feature flags are configured in `appsettings.json`:
+{
+  "FeatureManagement": {
+    "BetaFeature": {
+      "EnabledFor": [
+        {
+          "Name": "Microsoft.Percentage",
+          "Parameters": {
+            "Value": 20
+          }
+        }
+      ]
+    }
+  }
+}
+This configuration enables the `BetaFeature` for 20% of users based on a consistent hash of their user ID.
 
-1. **Run xUnit Tests**:  
-   Navigate to the solution directory and execute:  
-2. **What the Tests Cover**:  
-   - Verifies the function returns correct responses when the feature is enabled for targeted emails (e.g., `alpha@demo.com`).  
-   - Verifies the function returns correct responses when the feature is disabled for non-targeted emails.  
-   - Ensures proper handling of invalid requests (missing email parameter).  
+## API Endpoints
 
-3. **Test File**:  
-   `FeatureFlags.Sample.Test/FunctionTests/BetaFeatureFunctionTest.cs`  
+### GET /api/BetaFeatureFunction
 
-## 📦 Dependencies  
+Tests whether a user has access to the beta feature.
 
-### Function Project  
-- `Microsoft.FeatureManagement`  
-- `Microsoft.FeatureManagement.FeatureFilters`  
-- `Microsoft.Azure.Functions.Extensions`  
-- `Microsoft.Azure.WebJobs.Extensions.OpenApi`  
+**Query Parameters:**
+- `userId` (optional): User identifier for targeting. If not provided, a random GUID is generated.
 
-### Test Project  
-- `xunit`  
-- `Moq`  
-- `Microsoft.NET.Test.Sdk`  
-- `Microsoft.Extensions.DependencyInjection`  
+**Response:**{
+  "userId": "user1@example.com",
+  "hasAccess": true,
+  "bucket": 15,
+  "message": "✅ User 'user1@example.com' has access to BetaFeature (bucket: 15)."
+}
+## Testing
 
-Install via:  
+The project includes comprehensive unit tests in `FeatureFlags.Sample.Test` that validate:
+- Feature flag evaluation with and without user IDs
+- Percentage distribution accuracy
+- Bucket calculation consistency
+- Various percentage scenarios (0%, 50%, 100%)
 
-## 🧑‍💻 Development Notes  
+Run tests with:dotnet test
+## Deployment
 
-- **Feature Names**: Use `FeatureFlags/FeatureNames.cs` to define constants for feature flags to avoid typos:  
-- **Extending Filters**: If deterministic testing of percentage rollouts is needed, add a custom filter in `Filters/`.  
-- **Configuration**: Use `Configuration/FeatureFlagSettings.cs` for strongly-typed access to feature settings.  
-- **Services**: `Services/UserContextService.cs` can be extended for more complex user context logic.  
+For deployment to Azure:
 
-## 📖 Additional Resources  
+1. Update `local.settings.json` values as Azure Function App Configuration settings
+2. Replace `UseDevelopmentStorage=true` with actual Azure Storage connection string
+3. Configure Application Insights if needed
+4. Deploy using Azure CLI, GitHub Actions, or Visual Studio
 
-- [Microsoft Feature Management Docs](https://learn.microsoft.com/en-us/azure/azure-app-configuration/use-feature-flags)  
-- [Azure Functions In-Process Model](https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide)  
-- [OpenAPI in Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-openapi-definition)
+## Security Notes
+
+- `local.settings.json` is automatically excluded from source control via `.gitignore`
+- Never commit sensitive connection strings or secrets to version control
+- Use Azure Key Vault for production secrets
+- The `CopyToPublishDirectory` is set to `Never` for `local.settings.json` in the project file
+
+## Dependencies
+
+- **Microsoft.Azure.Functions.Extensions** - Dependency injection for Azure Functions
+- **Microsoft.Azure.WebJobs.Extensions.OpenApi** - OpenAPI/Swagger support
+- **Microsoft.FeatureManagement** - Feature flag management
+- **Microsoft.NET.Sdk.Functions** - Azure Functions SDK for .NET
+
+## Learn More
+
+- [Azure Functions documentation](https://docs.microsoft.com/azure/azure-functions/)
+- [Feature Management documentation](https://docs.microsoft.com/azure/azure-app-configuration/use-feature-flags-dotnet-core)
+- [.NET 8 documentation](https://docs.microsoft.com/dotnet/core/whats-new/dotnet-8)
